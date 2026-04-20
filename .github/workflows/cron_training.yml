@@ -1,0 +1,55 @@
+name: CRON Background Training
+
+# Links:
+# 1. https://medium.com/@michamarszaek/cross-workflow-artifact-passing-in-github-actions-7f20acbb1b70
+# 2. https://github.com/actions/upload-artifact?ysclid=m8vso6oti3815989621
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  schedule:
+    # - cron: "0 10 * * *"     # Запуск каждый день в 10:00
+    # - cron: "0 * * * *"     # Запуск каждый час
+    - cron: "* * * * *"     # Запуск каждую минуту
+
+jobs:
+  background-training:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Attempt to download previous artifacts
+      uses: dawidd6/action-download-artifact@v6
+      with:
+        workflow: cron_training.yml
+        name: training-artifacts
+        path: loc  # Извлекаем артефакты в папку loc
+        workflow_conclusion: success
+        branch: main
+      continue-on-error: true  # Игнорируем ошибку, если артефакт не найден
+
+    - name: Run training script with periodic artifact generation
+      run: python main.py --mode single  # Запускаем одну итерацию обучения
+        
+    - name: Upload new artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: training-artifacts
+        path: loc/
+
+    - name: Upload logs
+      uses: actions/upload-artifact@v4
+      with:
+        name: training-logs
+        path: training.log
